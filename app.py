@@ -38,13 +38,13 @@ def fetch_schedule(start_date, end_date):
 @app.route('/schedule', methods=['POST'])
 def schedule():
     body = request.get_json()
-    action = body.get('action', '')
-    
-    if action == '이번주':
+    action_param = body.get('action', {}).get('params', {}).get('action', '')
+
+    if action_param == '이번주':
         start, end = get_week_date_range(0)
-    elif action == '다음주':
+    elif action_param == '다음주':
         start, end = get_week_date_range(1)
-    elif action == '이번달':
+    elif action_param == '이번달':
         start, end = get_month_date_range()
     else:
         return jsonify({
@@ -53,11 +53,11 @@ def schedule():
                 "outputs": [{"simpleText": {"text": "잘못된 요청입니다."}}]
             }
         })
-    
+
     schedules = fetch_schedule(start, end)
-    
+
     if not schedules:
-        text = f"{action} 학사일정이 없습니다."
+        text = f"{action_param} 학사일정이 없습니다."
     else:
         def format_date(date_str):
             dt = datetime.strptime(date_str, '%Y%m%d')
@@ -108,10 +108,10 @@ def fetch_meal(date_str):
 @app.route('/meal', methods=['POST'])
 def meal():
     body = request.get_json()
-    action = body.get('action', '오늘')
+    action_param = body.get('action', {}).get('params', {}).get('action', '오늘')
 
     target_date = datetime.now()
-    if action == '내일':
+    if action_param == '내일':
         target_date += timedelta(days=1)
 
     date_str = target_date.strftime('%Y%m%d')
