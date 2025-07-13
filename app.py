@@ -1,7 +1,8 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, make_response
 import requests
 from datetime import datetime, timedelta
 import calendar
+import json
 
 app = Flask(__name__)
 
@@ -38,26 +39,29 @@ def fetch_schedule(start_date, end_date):
 @app.route('/schedule', methods=['POST'])
 def schedule():
     body = request.get_json()
-    action_param = body.get('action', {}).get('params', {}).get('action', '')
+    print("[DEBUG] 받은 요청:", body)
 
-    if action_param == '이번주':
+    action = body.get('action', '')
+
+    if action == '이번주':
         start, end = get_week_date_range(0)
-    elif action_param == '다음주':
+    elif action == '다음주':
         start, end = get_week_date_range(1)
-    elif action_param == '이번달':
+    elif action == '이번달':
         start, end = get_month_date_range()
     else:
-        return jsonify({
+        result = {
             "version": "2.0",
             "template": {
                 "outputs": [{"simpleText": {"text": "잘못된 요청입니다."}}]
             }
-        })
+        }
+        return make_json_response(result)
 
     schedules = fetch_schedule(start, end)
 
     if not schedules:
-        text = f"{action_param} 학사일정이 없습니다."
+        text = f"{action} 학사일정이 없습니다."
     else:
         def format_date(date_str):
             dt = datetime.strptime(date_str, '%Y%m%d')
@@ -66,7 +70,7 @@ def schedule():
         
         text = "\n".join([f"{format_date(d)}: {e}" for d, e in schedules])
 
-    return jsonify({
+    result = {
         "version": "2.0",
         "template": {
             "outputs": [{"simpleText": {"text": text}}],
@@ -78,7 +82,8 @@ def schedule():
                 {"label": "이번달", "action": "block", "blockId": "일정_이번달"},
             ]
         }
-    })
+    }
+    return make_json_response(result)
 
 
 ### 🔹 급식 기능
@@ -108,16 +113,18 @@ def fetch_meal(date_str):
 @app.route('/meal', methods=['POST'])
 def meal():
     body = request.get_json()
-    action_param = body.get('action', {}).get('params', {}).get('action', '오늘')
+    print("[DEBUG] 받은 요청:", body)
+
+    action = body.get('action', '오늘')
 
     target_date = datetime.now()
-    if action_param == '내일':
+    if action == '내일':
         target_date += timedelta(days=1)
 
     date_str = target_date.strftime('%Y%m%d')
     meal_info = fetch_meal(date_str)
 
-    return jsonify({
+    result = {
         "version": "2.0",
         "template": {
             "outputs": [{"simpleText": {"text": meal_info}}],
@@ -129,8 +136,20 @@ def meal():
                 {"label": "이번달", "action": "block", "blockId": "일정_이번달"},
             ]
         }
-    })
+    }
 
+    return make_json_response(result)
+
+
+### 🔹 공통: JSON 응답 함수
+
+def make_json_response(data_dict):
+    response = make_response(json.dumps(data_dict, ensure_ascii=False))
+    response.headers['Content-Type'] = 'application/json; charset=utf-8'
+    return response
+
+
+### 🔹 실행
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
