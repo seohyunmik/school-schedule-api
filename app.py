@@ -84,7 +84,7 @@ def schedule():
 ### 🔹 급식 기능
 
 def fetch_meal(date_str):
-    url = f'https://open.neis.go.kr/hub/mealServiceDietInfo?KEY={API_KEY}&Type=json&plndex=1&pSize=30&ATPT_OFCDC_SC_CODE={EDU_OFFICE_CODE}&SD_SCHUL_CODE={SCHOOL_CODE}&MLSV_YMD={date_str}'
+    url = f'https://open.neis.go.kr/hub/mealServiceDietInfo?KEY={API_KEY}&Type=json&pIndex=1&pSize=30&ATPT_OFCDC_SC_CODE={EDU_OFFICE_CODE}&SD_SCHUL_CODE={SCHOOL_CODE}&MLSV_YMD={date_str}'
     res = requests.get(url)
     data = res.json()
 
