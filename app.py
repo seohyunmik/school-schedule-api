@@ -84,12 +84,12 @@ def meal():
                         "text": meal_info
                     }
                 }
-            ]
+            ],
+            "quickReplies": quick_replies()
         }
     }
 
     return jsonify(response_body)
-
 
 @app.route('/schedule', methods=['POST'])
 def schedule():
