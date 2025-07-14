@@ -33,26 +33,31 @@ def fetch_schedule(start_date, end_date):
     return [(item['AA_YMD'], item['EVENT_NM']) for item in schedules if item['EVENT_NM'].strip()]
 
 def fetch_meal(date_str):
-    url = f'https://open.neis.go.kr/hub/mealServiceDietInfo?KEY={API_KEY}&Type=json&pIndex=1&pSize=30&ATPT_OFCDC_SC_CODE={EDU_OFFICE_CODE}&SD_SCHUL_CODE={SCHOOL_CODE}&MLSV_YMD={date_str}'
-    res = requests.get(url)
-    data = res.json()
+    try:
+        url = f'https://open.neis.go.kr/hub/mealServiceDietInfo?KEY={API_KEY}&Type=json&pIndex=1&pSize=30&ATPT_OFCDC_SC_CODE={EDU_OFFICE_CODE}&SD_SCHUL_CODE={SCHOOL_CODE}&MLSV_YMD={date_str}'
+        res = requests.get(url)
+        data = res.json()
 
-    if 'mealServiceDietInfo' not in data or len(data['mealServiceDietInfo']) <= 1:
-        return "급식 정보가 없습니다."
+        if 'mealServiceDietInfo' not in data or len(data['mealServiceDietInfo']) <= 1:
+            return "급식 정보가 없습니다."
 
-    rows = data['mealServiceDietInfo'][1].get('row', [])
-    if not rows:
-        return "급식 정보가 없습니다."
+        rows = data['mealServiceDietInfo'][1].get('row', [])
+        if not rows:
+            return "급식 정보가 없습니다."
 
-    result = []
-    meals = ['조식', '중식', '석식']
-    for i in range(min(3, len(rows))):
-        name = meals[i]
-        menu = rows[i]['DDISH_NM'].replace('<br/>', '\n').replace('<br />', '\n').replace('<br>', '\n')
-        cal = rows[i].get('CAL_INFO', '')
-        result.append(f"{name}\n{menu}\n총 {cal}")
+        result = []
+        meals = ['조식', '중식', '석식']
+        for i in range(min(3, len(rows))):
+            name = meals[i]
+            menu = rows[i]['DDISH_NM'].replace('<br/>', '\n').replace('<br />', '\n').replace('<br>', '\n')
+            cal = rows[i].get('CAL_INFO', '')
+            result.append(f"{name}\n{menu}\n총 {cal}")
 
-    return "\n\n".join(result)
+        return "\n\n".join(result)
+
+    except Exception as e:
+        print("급식 요청 중 오류:", e)
+        return "급식 정보를 불러오는 중 오류가 발생했습니다."
 
 def quick_replies():
     return [
@@ -65,31 +70,51 @@ def quick_replies():
 
 @app.route('/meal', methods=['POST'])
 def meal():
-    body = request.get_json()
-    action = body.get('action', {}).get('params', {}).get('action', '오늘')
+    try:
+        body = request.get_json()
+        print("요청 본문:", body)
 
-    target_date = datetime.now()
-    if action == '내일':
-        target_date += timedelta(days=1)
+        action = body.get('action', {}).get('params', {}).get('action', '오늘')
 
-    date_str = target_date.strftime('%Y%m%d')
-    meal_info = fetch_meal(date_str)
+        target_date = datetime.now()
+        if action == '내일':
+            target_date += timedelta(days=1)
 
-    response_body = {
-        "version": "2.0",
-        "template": {
-            "outputs": [
-                {
-                    "simpleText": {
-                        "text": meal_info
+        date_str = target_date.strftime('%Y%m%d')
+        print("조회할 날짜:", date_str)
+
+        meal_info = fetch_meal(date_str)
+
+        response_body = {
+            "version": "2.0",
+            "template": {
+                "outputs": [
+                    {
+                        "simpleText": {
+                            "text": meal_info
+                        }
                     }
-                }
-            ],
-            "quickReplies": quick_replies()
+                ]
+            }
         }
-    }
 
-    return jsonify(response_body)
+        print("응답 내용:", response_body)
+        return jsonify(response_body)
+
+    except Exception as e:
+        print("오류 발생:", e)
+        return jsonify({
+            "version": "2.0",
+            "template": {
+                "outputs": [
+                    {
+                        "simpleText": {
+                            "text": "서버 오류가 발생했습니다."
+                        }
+                    }
+                ]
+            }
+        }), 400
 
 @app.route('/schedule', methods=['POST'])
 def schedule():
