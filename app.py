@@ -66,7 +66,7 @@ def quick_replies():
 @app.route('/meal', methods=['POST'])
 def meal():
     body = request.get_json()
-    action = body.get('action', '오늘')
+    action = body.get('action', {}).get('params', {}).get('action', '오늘')
 
     target_date = datetime.now()
     if action == '내일':
@@ -94,7 +94,7 @@ def meal():
 @app.route('/schedule', methods=['POST'])
 def schedule():
     body = request.get_json()
-    action = body.get('action', '')
+    action = body.get('action', {}).get('params', {}).get('action', '')
 
     if action == '이번주':
         start, end = get_week_date_range(0)
