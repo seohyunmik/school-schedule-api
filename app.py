@@ -34,8 +34,13 @@ def fetch_schedule(start_date, end_date):
 
 def fetch_meal(date_str):
     url = f'https://open.neis.go.kr/hub/mealServiceDietInfo?KEY={API_KEY}&Type=json&pIndex=1&pSize=30&ATPT_OFCDC_SC_CODE={EDU_OFFICE_CODE}&SD_SCHUL_CODE={SCHOOL_CODE}&MLSV_YMD={date_str}'
-    res = requests.get(url)
-    data = res.json()
+    
+    try:
+        res = requests.get(url, timeout=3)
+        data = res.json()
+    except Exception as e:
+        print(f"[ERROR] 급식 정보 요청 실패: {e}")
+        return "급식 정보를 불러오는 중 오류가 발생했습니다."
 
     if 'mealServiceDietInfo' not in data or len(data['mealServiceDietInfo']) <= 1:
         return "급식 정보가 없습니다."
@@ -53,6 +58,7 @@ def fetch_meal(date_str):
         result.append(f"{name}\n{menu}\n총 {cal}")
 
     return "\n\n".join(result)
+
 
 def quick_replies():
     return [
