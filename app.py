@@ -70,36 +70,35 @@ def quick_replies():
 
 @app.route('/meal', methods=['POST'])
 def meal():
-    try:
-        body = request.get_json()
-        print("요청 본문:", body)
+    body = request.get_json(force=True)
 
-        action = body.get('action', {}).get('params', {}).get('action', '오늘')
+    # 요청이 어떤 형식이든 대응할 수 있도록 예외처리 포함
+    action_param = body.get('action', {}).get('params', {}).get('action', '오늘')
 
-        target_date = datetime.now()
-        if action == '내일':
-            target_date += timedelta(days=1)
+    # 오늘/내일 결정
+    target_date = datetime.now()
+    if action_param == '내일':
+        target_date += timedelta(days=1)
 
-        date_str = target_date.strftime('%Y%m%d')
-        print("조회할 날짜:", date_str)
+    date_str = target_date.strftime('%Y%m%d')
+    meal_info = fetch_meal(date_str)
 
-        meal_info = fetch_meal(date_str)
-
-        response_body = {
-            "version": "2.0",
-            "template": {
-                "outputs": [
-                    {
-                        "simpleText": {
-                            "text": meal_info
-                        }
+    response_body = {
+        "version": "2.0",
+        "template": {
+            "outputs": [
+                {
+                    "simpleText": {
+                        "text": meal_info
                     }
-                ]
-            }
+                }
+            ],
+            "quickReplies": quick_replies()
         }
+    }
 
-        print("응답 내용:", response_body)
-        return jsonify(response_body)
+    return jsonify(response_body)
+
 
     except Exception as e:
         print("오류 발생:", e)
