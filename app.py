@@ -75,15 +75,21 @@ def meal():
     date_str = target_date.strftime('%Y%m%d')
     meal_info = fetch_meal(date_str)
 
-    return jsonify({
+    response_body = {
         "version": "2.0",
         "template": {
-            "outputs": [{
-                "simpleText": {"text": meal_info}
-            }],
-            "quickReplies": quick_replies()
+            "outputs": [
+                {
+                    "simpleText": {
+                        "text": meal_info
+                    }
+                }
+            ]
         }
-    })
+    }
+
+    return jsonify(response_body)
+
 
 @app.route('/schedule', methods=['POST'])
 def schedule():
