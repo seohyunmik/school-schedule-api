@@ -1,17 +1,13 @@
-from flask import Flask, request, make_response
+from flask import Flask, request, jsonify
 import requests
 from datetime import datetime, timedelta
 import calendar
-import json
 
 app = Flask(__name__)
 
 API_KEY = '45b79ee5d9c640a299a2966db82ae7f4'
-EDU_OFFICE_CODE = 'P10'     # 전북특별자치도교육청
-SCHOOL_CODE = '8321081'     # 학교 고유 코드
-
-
-### 🔹 학사일정 기능
+EDU_OFFICE_CODE = 'P10'
+SCHOOL_CODE = '8321081'
 
 def get_week_date_range(week_offset=0):
     today = datetime.now()
@@ -36,58 +32,6 @@ def fetch_schedule(start_date, end_date):
     schedules = data['SchoolSchedule'][1]['row']
     return [(item['AA_YMD'], item['EVENT_NM']) for item in schedules if item['EVENT_NM'].strip()]
 
-@app.route('/schedule', methods=['POST'])
-def schedule():
-    body = request.get_json()
-    print("[DEBUG] 받은 요청:", body)
-
-    action = body.get('action', '')
-
-    if action == '이번주':
-        start, end = get_week_date_range(0)
-    elif action == '다음주':
-        start, end = get_week_date_range(1)
-    elif action == '이번달':
-        start, end = get_month_date_range()
-    else:
-        result = {
-            "version": "2.0",
-            "template": {
-                "outputs": [{"simpleText": {"text": "잘못된 요청입니다."}}]
-            }
-        }
-        return make_json_response(result)
-
-    schedules = fetch_schedule(start, end)
-
-    if not schedules:
-        text = f"{action} 학사일정이 없습니다."
-    else:
-        def format_date(date_str):
-            dt = datetime.strptime(date_str, '%Y%m%d')
-            weekday = ['월', '화', '수', '목', '금', '토', '일'][dt.weekday()]
-            return f"{dt.month}월 {dt.day}일({weekday})"
-        
-        text = "\n".join([f"{format_date(d)}: {e}" for d, e in schedules])
-
-    result = {
-        "version": "2.0",
-        "template": {
-            "outputs": [{"simpleText": {"text": text}}],
-            "quickReplies": [
-                {"label": "오늘 급식", "action": "block", "blockId": "급식_오늘"},
-                {"label": "내일 급식", "action": "block", "blockId": "급식_내일"},
-                {"label": "이번주", "action": "block", "blockId": "일정_이번주"},
-                {"label": "다음주", "action": "block", "blockId": "일정_다음주"},
-                {"label": "이번달", "action": "block", "blockId": "일정_이번달"},
-            ]
-        }
-    }
-    return make_json_response(result)
-
-
-### 🔹 급식 기능
-
 def fetch_meal(date_str):
     url = f'https://open.neis.go.kr/hub/mealServiceDietInfo?KEY={API_KEY}&Type=json&pIndex=1&pSize=30&ATPT_OFCDC_SC_CODE={EDU_OFFICE_CODE}&SD_SCHUL_CODE={SCHOOL_CODE}&MLSV_YMD={date_str}'
     res = requests.get(url)
@@ -110,11 +54,18 @@ def fetch_meal(date_str):
 
     return "\n\n".join(result)
 
+def quick_replies():
+    return [
+        {"label": "오늘 급식", "action": "block", "blockId": "급식_오늘"},
+        {"label": "내일 급식", "action": "block", "blockId": "급식_내일"},
+        {"label": "이번주", "action": "block", "blockId": "일정_이번주"},
+        {"label": "다음주", "action": "block", "blockId": "일정_다음주"},
+        {"label": "이번달", "action": "block", "blockId": "일정_이번달"},
+    ]
+
 @app.route('/meal', methods=['POST'])
 def meal():
     body = request.get_json()
-    print("[DEBUG] 받은 요청:", body)
-
     action = body.get('action', '오늘')
 
     target_date = datetime.now()
@@ -124,32 +75,56 @@ def meal():
     date_str = target_date.strftime('%Y%m%d')
     meal_info = fetch_meal(date_str)
 
-    result = {
+    return jsonify({
         "version": "2.0",
         "template": {
-            "outputs": [{"simpleText": {"text": meal_info}}],
-            "quickReplies": [
-                {"label": "오늘 급식", "action": "block", "blockId": "급식_오늘"},
-                {"label": "내일 급식", "action": "block", "blockId": "급식_내일"},
-                {"label": "이번주", "action": "block", "blockId": "일정_이번주"},
-                {"label": "다음주", "action": "block", "blockId": "일정_다음주"},
-                {"label": "이번달", "action": "block", "blockId": "일정_이번달"},
-            ]
+            "outputs": [{
+                "simpleText": {"text": meal_info}
+            }],
+            "quickReplies": quick_replies()
         }
-    }
+    })
 
-    return make_json_response(result)
+@app.route('/schedule', methods=['POST'])
+def schedule():
+    body = request.get_json()
+    action = body.get('action', '')
 
+    if action == '이번주':
+        start, end = get_week_date_range(0)
+    elif action == '다음주':
+        start, end = get_week_date_range(1)
+    elif action == '이번달':
+        start, end = get_month_date_range()
+    else:
+        return jsonify({
+            "version": "2.0",
+            "template": {
+                "outputs": [{"simpleText": {"text": "잘못된 요청입니다."}}],
+                "quickReplies": quick_replies()
+            }
+        })
 
-### 🔹 공통: JSON 응답 함수
+    schedules = fetch_schedule(start, end)
 
-def make_json_response(data_dict):
-    response = make_response(json.dumps(data_dict, ensure_ascii=False))
-    response.headers['Content-Type'] = 'application/json; charset=utf-8'
-    return response
+    if not schedules:
+        text = f"{action} 학사일정이 없습니다."
+    else:
+        def format_date(date_str):
+            dt = datetime.strptime(date_str, '%Y%m%d')
+            weekday = ['월', '화', '수', '목', '금', '토', '일'][dt.weekday()]
+            return f"{dt.month}월 {dt.day}일({weekday})"
+        text = "\n".join([f"{format_date(d)}: {e}" for d, e in schedules])
 
-
-### 🔹 실행
+    return jsonify({
+        "version": "2.0",
+        "template": {
+            "outputs": [{
+                "simpleText": {"text": text}
+            }],
+            "quickReplies": quick_replies()
+        }
+    })
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
