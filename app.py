@@ -72,7 +72,17 @@ def quick_replies():
 @app.route('/meal', methods=['POST'])
 def meal():
     body = request.get_json()
-    action = body.get('action', {}).get('params', {}).get('action', '오늘')
+
+    # 안정적으로 action 값 추출 (params 또는 detailParams 지원)
+    action = '오늘'
+    try:
+        action = (
+            body.get('action', {}).get('params', {}).get('action') or
+            body.get('action', {}).get('detailParams', {}).get('action', {}).get('value') or
+            '오늘'
+        )
+    except:
+        pass
 
     target_date = datetime.now()
     if action == '내일':
@@ -81,47 +91,16 @@ def meal():
     date_str = target_date.strftime('%Y%m%d')
     meal_info = fetch_meal(date_str)
 
-    response_body = {
+    return jsonify({
         "version": "2.0",
         "template": {
             "outputs": [
-                {
-                    "simpleText": {
-                        "text": meal_info
-                    }
-                }
-            ]
+                {"simpleText": {"text": meal_info}}
+            ],
+            "quickReplies": quick_replies()
         }
-    }
-
-    return jsonify(response_body)
-@app.route('/meal', methods=['POST'])
-def meal():
-    body = request.get_json()
+    })
     
-    action = body.get('action', {}).get('params', {}).get('action') or \
-             body.get('action', {}).get('detailParams', {}).get('action', {}).get('value', '오늘')
-
-    target_date = datetime.now()
-    if action == '내일':
-        target_date += timedelta(days=1)
-
-    date_str = target_date.strftime('%Y%m%d')
-    meal_info = fetch_meal(date_str)
-
-    response_body = {
-        "version": "2.0",
-        "template": {
-            "outputs": [
-                {
-                    "simpleText": {
-                        "text": meal_info
-                    }
-                }
-            ]
-        }
-    }
-
     return jsonify(response_body)
 
 @app.route('/schedule', methods=['POST'])
