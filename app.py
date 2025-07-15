@@ -106,8 +106,19 @@ def meal():
 @app.route('/schedule', methods=['POST'])
 def schedule():
     body = request.get_json()
-    action = body.get('action', {}).get('params', {}).get('action', '')
 
+    # 안정적으로 action 값 추출 (params 또는 detailParams 모두 대응)
+    action = ''
+    try:
+        action = (
+            body.get('action', {}).get('params', {}).get('action') or
+            body.get('action', {}).get('detailParams', {}).get('action', {}).get('value') or
+            ''
+        )
+    except:
+        pass
+
+    # 날짜 범위 결정
     if action == '이번주':
         start, end = get_week_date_range(0)
     elif action == '다음주':
@@ -123,8 +134,10 @@ def schedule():
             }
         })
 
+    # 학사일정 불러오기
     schedules = fetch_schedule(start, end)
 
+    # 일정이 없을 경우 메시지
     if not schedules:
         text = f"{action} 학사일정이 없습니다."
     else:
@@ -132,17 +145,19 @@ def schedule():
             dt = datetime.strptime(date_str, '%Y%m%d')
             weekday = ['월', '화', '수', '목', '금', '토', '일'][dt.weekday()]
             return f"{dt.month}월 {dt.day}일({weekday})"
+
         text = "\n".join([f"{format_date(d)}: {e}" for d, e in schedules])
 
+    # 최종 응답
     return jsonify({
         "version": "2.0",
         "template": {
-            "outputs": [{
-                "simpleText": {"text": text}
-            }],
+            "outputs": [{"simpleText": {"text": text}}],
             "quickReplies": quick_replies()
         }
     })
+
+    return jsonify(response_body)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
