@@ -95,7 +95,34 @@ def meal():
     }
 
     return jsonify(response_body)
+@app.route('/meal', methods=['POST'])
+def meal():
+    body = request.get_json()
+    
+    action = body.get('action', {}).get('params', {}).get('action') or \
+             body.get('action', {}).get('detailParams', {}).get('action', {}).get('value', '오늘')
 
+    target_date = datetime.now()
+    if action == '내일':
+        target_date += timedelta(days=1)
+
+    date_str = target_date.strftime('%Y%m%d')
+    meal_info = fetch_meal(date_str)
+
+    response_body = {
+        "version": "2.0",
+        "template": {
+            "outputs": [
+                {
+                    "simpleText": {
+                        "text": meal_info
+                    }
+                }
+            ]
+        }
+    }
+
+    return jsonify(response_body)
 
 @app.route('/schedule', methods=['POST'])
 def schedule():
