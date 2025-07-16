@@ -73,16 +73,15 @@ def meal():
     body = request.get_json()
     print("[meal 요청]", body)
 
-    # 액션 파라미터 가져오기
-   action = (
-    body.get("action", {})
-        .get("detailParams", {})
-        .get("action", {})
-        .get("value")
-    or body.get("action", {})
-        .get("params", {})
-        .get("action", "오늘")
-)
+    action = (
+        body.get("action", {})
+            .get("detailParams", {})
+            .get("action", {})
+            .get("value")
+        or body.get("action", {})
+            .get("params", {})
+            .get("action", "오늘")
+    )
 
     target_date = get_kst_now()
     if action == '내일':
@@ -112,14 +111,14 @@ def schedule():
     print("[schedule 요청]", body)
 
     action = (
-    body.get("action", {})
-        .get("detailParams", {})
-        .get("action", {})
-        .get("value")
-    or body.get("action", {})
-        .get("params", {})
-        .get("action", "")
-)
+        body.get("action", {})
+            .get("detailParams", {})
+            .get("action", {})
+            .get("value")
+        or body.get("action", {})
+            .get("params", {})
+            .get("action", "")
+    )
 
     if action == '이번주':
         start, end = get_week_date_range(0)
