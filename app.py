@@ -73,18 +73,10 @@ def meal():
     body = request.get_json()
     print("[meal 요청]", body)
 
-    action = (
-        body.get("action", {})
-            .get("detailParams", {})
-            .get("action", {})
-            .get("value")
-        or body.get("action", {})
-            .get("params", {})
-            .get("action", "오늘")
-    )
+    intent = body.get('intent', {}).get('id', '')  # block ID로 판단
 
     target_date = get_kst_now()
-    if action == '내일':
+    if '내일' in intent:
         target_date += timedelta(days=1)
 
     date_str = target_date.strftime('%Y%m%d')
@@ -105,27 +97,23 @@ def meal():
 
     return jsonify(response_body)
 
+
 @app.route('/schedule', methods=['POST'])
 def schedule():
     body = request.get_json()
     print("[schedule 요청]", body)
 
-    action = (
-        body.get("action", {})
-            .get("detailParams", {})
-            .get("action", {})
-            .get("value")
-        or body.get("action", {})
-            .get("params", {})
-            .get("action", "")
-    )
+    intent = body.get('intent', {}).get('id', '')  # block ID로 판단
 
-    if action == '이번주':
+    if '이번주' in intent:
         start, end = get_week_date_range(0)
-    elif action == '다음주':
+        label = "이번주"
+    elif '다음주' in intent:
         start, end = get_week_date_range(1)
-    elif action == '이번달':
+        label = "다음주"
+    elif '이번달' in intent:
         start, end = get_month_date_range()
+        label = "이번달"
     else:
         return jsonify({
             "version": "2.0",
@@ -138,13 +126,14 @@ def schedule():
     schedules = fetch_schedule(start, end)
 
     if not schedules:
-        text = f"{action} 학사일정이 없습니다."
+        text = f"{label} 학사일정이 없습니다."
     else:
         def format_date(date_str):
             dt = datetime.strptime(date_str, '%Y%m%d')
             weekday = ['월', '화', '수', '목', '금', '토', '일'][dt.weekday()]
             return f"{dt.month}월 {dt.day}일({weekday})"
-        text = "\n".join([f"{format_date(d)}: {e}" for d, e in schedules])
+
+        text = f"[{label} 일정]\n" + "\n".join([f"{format_date(d)}: {e}" for d, e in schedules])
 
     return jsonify({
         "version": "2.0",
@@ -155,6 +144,7 @@ def schedule():
             "quickReplies": quick_replies()
         }
     })
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
